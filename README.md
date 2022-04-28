@@ -9,7 +9,6 @@ import numpy as np
 import os
 import pyproj
 import requests
-import threading
 from matplotlib import pyplot as plt
 from osgeo import gdal, ogr, osr
 
@@ -101,13 +100,14 @@ image = cv2.imread(tempfile)
 # Now that it is a numpy array, delete the temp file
 os.remove(tempfile)
 
-plt.imshow(image)
+# Show tile image in RGB
+plt.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
 ```
 
 
 
 
-    <matplotlib.image.AxesImage at 0x17b46f9b100>
+    <matplotlib.image.AxesImage at 0x1f17129dae0>
 
 
 
@@ -157,13 +157,14 @@ master_image = cv2.hconcat(horizontal_concat)
 # Make matplotlib chart bigger 
 plt.rcParams['figure.figsize'] = [10, 10]
 
-plt.imshow(master_image)
+# Show master tile image in RGB
+plt.imshow(cv2.cvtColor(master_image, cv2.COLOR_BGR2RGB))
 ```
 
 
 
 
-    <matplotlib.image.AxesImage at 0x17b46b4ad70>
+    <matplotlib.image.AxesImage at 0x1f17435afb0>
 
 
 
@@ -209,31 +210,31 @@ ground_control_pts
 
 
 
-    [<osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x0000017B46B79FE0> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x0000017B46B7BF00> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x0000017B46B7BF30> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x0000017B46B79170> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x0000017B46B79C20> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x0000017B46FCB8A0> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x0000017B46B11F80> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x0000017B470A1980> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x0000017B46B94360> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x0000017B46B943F0> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x0000017B46B94480> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x0000017B46B94510> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x0000017B46B945A0> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x0000017B46B94630> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x0000017B46B946C0> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x0000017B46B94750> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x0000017B46B94900> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x0000017B46B94990> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x0000017B46B94A20> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x0000017B46B94AB0> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x0000017B46B94B40> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x0000017B46B94BD0> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x0000017B46B94C60> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x0000017B46B964C0> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x0000017B46B96430> >]
+    [<osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F17433AD30> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B75A0> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B6910> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B47E0> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B4870> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B4A20> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B58C0> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B5950> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B59E0> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B5A70> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B5B00> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B5B90> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B5C20> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B5CB0> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B6FA0> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B6F10> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B6E80> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B6DF0> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B6D60> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B6CD0> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B6C40> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B6BB0> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B6B20> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B6A90> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B6A00> >]
 
 
 
@@ -249,6 +250,7 @@ dataset = gdal.GetDriverByName('MEM').Create('', master_image.shape[1], master_i
 # When using a numpy array the interleave needs to be 'pixel'
 # If using a numpy array from OpenCV, the bands list needs to be reversed because OpenCV is BGR (blue-green-red)
 # instead of normal RGB (red-green-blue)
+# Or conversely you can convert the master image to RGB using OpenCV and have the bands list in normal order [1, 2, 3] 
 dataset.WriteArray(master_image, interleave='pixel', band_list=[3, 2, 1])
 
 # Create a Spatial Reference and import it from the WGS84 EPSG number
