@@ -1,4 +1,49 @@
+# Map Tiles to Georeferenced PDF
+
+### Using OpenStreetMap for the tiles and OpenCV and GDAL for raster processing
+
+#### This notebook shows how to take a coordinate, get the surrounding map tiles and create a georeferenced PDF from the tile images
+
+##### Step 1 - Transform state plane coordinates to WGS84 Lat/Lon degrees (skip if you already have Lat/Lon degree values)
+##### Step 2 - Get the closest map tile number from the coordinates given a certain zoom level
+##### Step 3 - Create a range of X and Y tile numbers to surround the target tile with extra tiles
+##### Step 4 - Get the tile PNG images from OpenStreetMap and convert them to OpenCV images (numpy arrays)
+##### Step 5 - Using OpenCV, concatenate the tile arrays into a master image
+##### Step 6 - Get GDAL Ground Control Points from each tile's northwest corner coordinates, and the tile's norwest corner array indices
+##### Step 7 - Write the master image array to a GDAL Raster Dataset
+##### Step 8 - Project that dataset to WGS84 and add the Ground Control Points
+##### Step 9 - Warp the dataset using GDAL to finalize georeferencing
+##### Step 10 - Copy the warped dataset to a georeferenced PDF
+
+
+
 ## Imports and Constants
+
+#### Installing GDAL can be somewhat tricky, this is the process I used...
+
+For this demonstration we are using Python 3.10 on a 64-bit machine
+If you are also using Python 3.10 on a 64 bit machine you can pip install the provided wheel for GDAL
+in this repository
+
+```bash
+    pip install GDAL-3.4.2-cp310-cp310-win_amd64.whl
+```
+
+If you are using a different version of Python or a 32 bit machine, download the GDAL wheel corresponding
+to your Python version number and bit size from this repository: https://www.lfd.uci.edu/~gohlke/pythonlibs/
+
+The Python version corresponds to the cpXXX number in the wheel filename. For 32 bit the end of the filename
+will be win32 and for 64 bit it will be win_amd64.
+
+For example:
+
+Python 3.8 32-bit = GDAL-3.4.2-cp38-cp38-win32.whl
+
+Python 3.8 64-bit = GDAL-3.4.2-cp38-cp38-win_amd64.whl
+
+```bash
+    pip install <GDAL filename>
+```
 
 
 ```python
@@ -17,7 +62,7 @@ WGS84_EPSG = 'EPSG:4326' # This is the projection system for Mercator and Map Ti
 ```
 
 
-## Getting map tiles from State Plane feet coordinates
+## Step 1 - Tranform the state plane coordinates to WGS84 Lat/Lon Degrees
 
 #### This X/Y is in State Plane Feet for the Space Needle in Seattle
 
@@ -25,8 +70,6 @@ WGS84_EPSG = 'EPSG:4326' # This is the projection system for Mercator and Map Ti
 ```python
 XY_SEATTLE = (1_184_355.269, 839_450.242)
 ```
-
-### Finding the closest map tile to our XY_SEATTLE Coordinate
 
 #### Transform the state plane coordinates to WGS84 lat/lon
 
@@ -48,6 +91,8 @@ lat, lon
     (47.62047833051376, -122.34925913830723)
 
 
+
+## Step 2 - Get the closest map tile number for the coordinates
 
 #### This algorithm comes from Open Street Map https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames
 
@@ -83,7 +128,7 @@ print('With TMS (X,Y) -\t', (xtile, ytile_TMS))
 
 ```python
 # This is the base url for OpenStreetMap tiles
-# Format with Zoom Level, X tile number and Y tile number to get the tile
+# Format the url string with Zoom Level, X tile number and Y tile number to get the tile
 base_url = 'https://tile.openstreetmap.org/{zoom}/{x}/{y}.png'
 
 # Request the tile usings requests
@@ -91,6 +136,7 @@ req = requests.get(base_url.format(zoom=zoom_level, x=xtile, y=ytile))
 
 # Write req.content to a temp file on disk, the content will be in bytes so enable 'wb' in open(...)
 tempfile = f'temp_tile_{zoom_level}_{xtile}_{ytile}.png'
+
 with open(tempfile, 'wb') as f:
     f.write(req.content)
 
@@ -107,25 +153,34 @@ plt.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
 
 
 
-    <matplotlib.image.AxesImage at 0x1f17129dae0>
+    <matplotlib.image.AxesImage at 0x2b6059e87f0>
 
 
 
 
     
-![png](map_tiles_notebook_files/map_tiles_notebook_11_1.png)
+![png](map_tiles_notebook_files/map_tiles_notebook_12_1.png)
     
 
+
+## Step 3 - Create a range of X and Y tile numbers to surround the target tile with extra tiles
 
 #### Get multiple map tiles around the target tile 
 
 
 ```python
-# Using a number of to expand on either side, we can get a range of X and Y tile numbers surrounding the target tile
+# Using an offset number of tiles, we can get a range of X and Y tile numbers surrounding the target tile
 offset = 2
 xtile_rng = range(xtile - offset, xtile + offset + 1)
 ytile_rng = range(ytile - offset, ytile + offset + 1)
+```
 
+## Step 4 - Get the tile PNG images from OpenStreetMap and convert them to OpenCV images (numpy arrays)
+
+## Step 5 - Using OpenCV, concatenate the tile arrays into a master image
+
+
+```python
 # Using a for-loop we can get the numpy arrays of the map tile images as we did above
 # Then using OpenCV we can concatenate the images into a master image
 horizontal_concat = []
@@ -164,17 +219,17 @@ plt.imshow(cv2.cvtColor(master_image, cv2.COLOR_BGR2RGB))
 
 
 
-    <matplotlib.image.AxesImage at 0x1f17435afb0>
+    <matplotlib.image.AxesImage at 0x2b605add900>
 
 
 
 
     
-![png](map_tiles_notebook_files/map_tiles_notebook_13_1.png)
+![png](map_tiles_notebook_files/map_tiles_notebook_17_1.png)
     
 
 
-## Georeferencing the tile image and exporting to PDF or TIFF
+## Step 6 - Get GDAL Ground Control Points from each tile's northwest corner coordinates, and the tile's norwest corner array indices
 
 #### Getting Ground Control Points
 Using the map tile number we can convert to Lat/Lon of the Northwest (upper-left) Corner of each tile
@@ -194,7 +249,7 @@ for x in xtile_rng:
         lat_rad = math.atan(math.sinh(math.pi * (1 - 2 * y / n)))  # radians
         lat = math.degrees(lat_rad)  # degrees
         
-        # Using the min tiles and current tiles to get the pixel index of the master image array
+        # Using the min tile numbers and current tile numbers to get the pixel index of the master image array
         # Each tile is 256 x 256 pixels
         xtile_idx = float((x - min_xtile) * 256)
         ytile_idx = float((y - min_ytile) * 256)
@@ -210,35 +265,41 @@ ground_control_pts
 
 
 
-    [<osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F17433AD30> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B75A0> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B6910> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B47E0> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B4870> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B4A20> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B58C0> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B5950> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B59E0> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B5A70> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B5B00> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B5B90> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B5C20> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B5CB0> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B6FA0> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B6F10> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B6E80> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B6DF0> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B6D60> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B6CD0> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B6C40> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B6BB0> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B6B20> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B6A90> >,
-     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000001F1743B6A00> >]
+    [<osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000002B6065E14D0> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000002B6065E3600> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000002B6065E3E70> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000002B6065E3780> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000002B6065E36C0> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000002B606604030> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000002B606606190> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000002B606606100> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000002B606606070> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000002B606605FE0> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000002B606605F50> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000002B606605EC0> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000002B606605E30> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000002B606605DA0> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000002B606604690> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000002B606604720> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000002B6066047B0> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000002B606604840> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000002B6066048D0> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000002B606604960> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000002B6066049F0> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000002B606604A80> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000002B606604B10> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000002B606604BA0> >,
+     <osgeo.gdal.GCP; proxy of <Swig Object of type 'GDAL_GCP *' at 0x000002B606604C30> >]
 
 
 
-#### Converting the master image to GDAL raster in memory and exporting to georeferenced PDF or GeoTIFF
+## Step 7 - Write the master image array to a GDAL Raster Dataset
+
+## Step 8 - Project that dataset to WGS84 and add the Ground Control Points
+
+## Step 9 - Warp the dataset using GDAL to finalize georeferencing
+
+## Step 10 - Copy the warped dataset to a georeferenced PDF
 
 
 ```python
